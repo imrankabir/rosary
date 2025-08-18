@@ -8,26 +8,22 @@ body {
   font-family: Arial, sans-serif;
   background: linear-gradient(to right, #2c3e50, #3498db);
 }
-
 .container {
   padding: 30px;
   border-radius: 15px;
   background: rgba(255, 255, 255, 0.1);
   box-shadow: 0 5px 15px rgba(0,0,0,0.3);
 }
-
 h1 {
   display: none;
   font-size: 2rem;
   margin-bottom: 20px;
 }
-
 #count {
   margin: 20px 0;
   font-size: 3rem;
   font-weight: bold;
 }
-
 button {
   border: none;
   margin: 10px;
@@ -37,21 +33,17 @@ button {
   padding: 10px 20px;
   border-radius: 10px;
 }
-
 .count-btn {
   color: white;
   background: #27ae60;
 }
-
 .count-btn:hover {
   background: #2ecc71;
 }
-
 .reset-btn {
   color: white;
   background: #e74c3c;
 }
-
 .reset-btn:hover {
   background: #c0392b;
 }
