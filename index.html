@@ -1,67 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Digital Rosary Counter</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: linear-gradient(to right, #2c3e50, #3498db);
-      color: white;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .container {
-      background: rgba(255, 255, 255, 0.1);
-      padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 5px 15px rgba(0,0,0,0.3);
-    }
-
-    h1 {
-      font-size: 2rem;
-      margin-bottom: 20px;
-    }
-
-    #count {
-      font-size: 3rem;
-      margin: 20px 0;
-      font-weight: bold;
-    }
-
-    button {
-      font-size: 1.2rem;
-      padding: 10px 20px;
-      margin: 10px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      transition: 0.3s;
-    }
-
-    .count-btn {
-      background: #27ae60;
-      color: white;
-    }
-
-    .count-btn:hover {
-      background: #2ecc71;
-    }
-
-    .reset-btn {
-      background: #e74c3c;
-      color: white;
-    }
-
-    .reset-btn:hover {
-      background: #c0392b;
-    }
-  </style>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+    <title>Digital Rosary</title>
+    <link rel="shortcut icon" type="image/x-icon" href="favicon.png">
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="container">
@@ -70,19 +14,6 @@
     <button class="count-btn" onclick="increaseCount()">Count</button>
     <button class="reset-btn" onclick="resetCount()">Reset</button>
   </div>
-
-  <script>
-    let count = 0;
-
-    function increaseCount() {
-      count++;
-      document.getElementById("count").innerText = count;
-    }
-
-    function resetCount() {
-      count = 0;
-      document.getElementById("count").innerText = count;
-    }
-  </script>
+  <script src="script.js"></script>
 </body>
 </html>
