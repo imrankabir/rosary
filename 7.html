@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Tasbih Counter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #eee;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+      min-height: 100vh;
+      margin: 0;
+      padding: 1rem;
+    }
+    h1 { margin: 0.5rem 0; }
+    .counter {
+      font-size: 3rem;
+      margin: 1rem 0;
+    }
+    button {
+      font-size: 1.5rem;
+      margin: 0.3rem;
+      padding: 1rem 2rem;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      background: #1e88e5;
+      color: white;
+      transition: 0.2s;
+    }
+    button:hover { background: #1565c0; }
+    button.secondary { background: #424242; }
+    .controls {
+      margin: 1rem 0;
+      text-align: center;
+    }
+    .stats {
+      margin: 1rem 0;
+      font-size: 1rem;
+      text-align: center;
+    }
+    .history {
+      margin-top: 1.5rem;
+      width: 100%;
+      max-width: 600px;
+      background: #1e1e1e;
+      padding: 1rem;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    }
+    .history h2 {
+      margin-top: 0;
+    }
+    .history-log {
+      max-height: 200px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+    canvas {
+      margin-top: 1rem;
+      max-width: 100%;
+    }
+  </style>
+</head>
+<body>
+  <h1>📿 Digital Tasbih</h1>
+  <div class="counter" id="count">0</div>
+  <div class="controls">
+    <button id="tapBtn">Tap</button>
+    <button class="secondary" id="minusBtn">-1</button>
+    <button class="secondary" id="resetBtn">Reset</button>
+  </div>
+  <div class="stats">
+    <p id="rounds">Rounds: 0</p>
+    <p id="total">Total Count: 0</p>
+    <p id="lifetime">Lifetime: 0</p>
+  </div>
+
+  <div class="history">
+    <h2>History Log</h2>
+    <div class="history-log" id="historyLog"></div>
+    <button class="secondary" id="exportCSV">Export CSV</button>
+    <button class="secondary" id="exportJSON">Export JSON</button>
+    <canvas id="historyChart"></canvas>
+  </div>
+
+  <!-- <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> -->
+  <script src="chart.js"></script>
+  <script>
+    const countEl = document.getElementById('count');
+    const roundsEl = document.getElementById('rounds');
+    const totalEl = document.getElementById('total');
+    const lifetimeEl = document.getElementById('lifetime');
+    const historyLogEl = document.getElementById('historyLog');
+
+    let count = parseInt(localStorage.getItem('count')) || 0;
+    let rounds = parseInt(localStorage.getItem('rounds')) || 0;
+    let total = parseInt(localStorage.getItem('total')) || 0;
+    let lifetime = parseInt(localStorage.getItem('lifetime')) || 0;
+    let history = JSON.parse(localStorage.getItem('history')) || [];
+
+    const STEP_LIMIT = 33; // auto-reset threshold
+
+    function save() {
+      localStorage.setItem('count', count);
+      localStorage.setItem('rounds', rounds);
+      localStorage.setItem('total', total);
+      localStorage.setItem('lifetime', lifetime);
+      localStorage.setItem('history', JSON.stringify(history));
+    }
+
+    function render() {
+      countEl.textContent = count;
+      roundsEl.textContent = `Rounds: ${rounds}`;
+      totalEl.textContent = `Total Count: ${total}`;
+      lifetimeEl.textContent = `Lifetime: ${lifetime}`;
+      historyLogEl.innerHTML = history.map(h => 
+        `<div>${h.date} - Rounds: ${h.rounds}, Total: ${h.total}</div>`
+      ).join('');
+      renderChart();
+    }
+
+    function addToHistory() {
+      const today = new Date().toLocaleDateString();
+      let entry = history.find(h => h.date === today);
+      if (entry) {
+        entry.rounds = rounds;
+        entry.total = total;
+      } else {
+        history.push({ date: today, rounds, total });
+      }
+      save();
+    }
+
+    function increment() {
+      count++;
+      total++;
+      lifetime++;
+      if (count >= STEP_LIMIT) {
+        count = 0;
+        rounds++;
+      }
+      addToHistory();
+      save();
+      render();
+    }
+
+    function decrement() {
+      if (count > 0) { count--; }
+      save();
+      render();
+    }
+
+    function reset() {
+      count = 0;
+      rounds = 0;
+      total = 0;
+      save();
+      render();
+    }
+
+    document.getElementById('tapBtn').addEventListener('click', increment);
+    document.getElementById('minusBtn').addEventListener('click', decrement);
+    document.getElementById('resetBtn').addEventListener('click', reset);
+
+    // Export CSV
+    document.getElementById('exportCSV').addEventListener('click', () => {
+      const rows = [['Date','Rounds','Total']];
+      history.forEach(h => rows.push([h.date, h.rounds, h.total]));
+      let csv = rows.map(r => r.join(",")).join("\n");
+      let blob = new Blob([csv], {type: 'text/csv'});
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement('a');
+      a.href = url;
+      a.download = "tasbih_history.csv";
+      a.click();
+    });
+
+    // Export JSON
+    document.getElementById('exportJSON').addEventListener('click', () => {
+      let blob = new Blob([JSON.stringify(history, null, 2)], {type: 'application/json'});
+      let url = URL.createObjectURL(blob);
+      let a = document.createElement('a');
+      a.href = url;
+      a.download = "tasbih_history.json";
+      a.click();
+    });
+
+    // Chart.js visualization
+    let chart;
+    function renderChart() {
+      const labels = history.map(h => h.date);
+      const data = history.map(h => h.total);
+      if (chart) chart.destroy();
+      chart = new Chart(document.getElementById('historyChart'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            label: 'Total Count per Day',
+            data,
+            borderColor: '#42a5f5',
+            backgroundColor: 'rgba(66,165,245,0.3)',
+            fill: true,
+            tension: 0.3
+          }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: "Date" }},
+            y: { title: { display: true, text: "Total Count" }}
+          }
+        }
+      });
+    }
+
+    render();
+  </script>
+</body>
+</html>

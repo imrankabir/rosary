@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Digital Tasbih Counter</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      margin: 0; 
+      font-family: Arial, sans-serif;
+      display: flex; 
+      flex-direction: column; 
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      background: #121212;
+      color: #fff;
+    }
+    h1 { font-size: 1.4em; margin-bottom: 10px; }
+    #count {
+      font-size: 4em;
+      margin: 15px;
+    }
+    #rounds, #total, #target {
+      font-size: 1.2em;
+      margin: 5px;
+    }
+    .btn {
+      padding: 20px 30px;
+      margin: 8px;
+      font-size: 1.3em;
+      border: none;
+      border-radius: 50px;
+      cursor: pointer;
+      background: #1e88e5;
+      color: white;
+      transition: background 0.3s;
+    }
+    .btn:hover { background: #1565c0; }
+    .small-btn {
+      padding: 10px 16px;
+      font-size: 0.9em;
+      border-radius: 8px;
+    }
+    #history {
+      max-height: 200px;
+      overflow-y: auto;
+      margin-top: 15px;
+      width: 90%;
+      background: #1d1d1d;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 0.9em;
+    }
+    #history h2 {
+      margin-top: 0;
+      font-size: 1.1em;
+    }
+    #history ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    #history li {
+      border-bottom: 1px solid #333;
+      padding: 5px 0;
+    }
+  </style>
+</head>
+<body>
+  <h1>Digital Tasbih Counter</h1>
+  <div id="count">0</div>
+  <div id="rounds">Rounds: 0</div>
+  <div id="total">Total Count: 0</div>
+  <div id="target">Target: <span id="targetValue">33</span></div>
+
+  <button class="btn" id="tapBtn">Tap / +1</button>
+  <div>
+    <button class="btn small-btn" id="minusBtn">−1</button>
+    <button class="btn small-btn" id="resetBtn">Reset</button>
+  </div>
+  <div>
+    <button class="btn small-btn" id="toggleVibrate">Vibrate: Off</button>
+    <button class="btn small-btn" id="exportCSV">Export CSV</button>
+    <button class="btn small-btn" id="exportJSON">Export JSON</button>
+  </div>
+
+  <div id="history">
+    <h2>History Log</h2>
+    <ul id="historyList"></ul>
+  </div>
+
+<script>
+  let count = parseInt(localStorage.getItem("count")) || 0;
+  let rounds = parseInt(localStorage.getItem("rounds")) || 0;
+  let total = parseInt(localStorage.getItem("total")) || 0;
+  let vibrate = localStorage.getItem("vibrate") === "true";
+  let history = JSON.parse(localStorage.getItem("history")) || [];
+  const target = 33; // step mode (auto reset)
+
+  const countEl = document.getElementById("count");
+  const roundsEl = document.getElementById("rounds");
+  const totalEl = document.getElementById("total");
+  const targetEl = document.getElementById("targetValue");
+  const tapBtn = document.getElementById("tapBtn");
+  const resetBtn = document.getElementById("resetBtn");
+  const minusBtn = document.getElementById("minusBtn");
+  const vibrateBtn = document.getElementById("toggleVibrate");
+  const historyList = document.getElementById("historyList");
+
+  function updateDisplay() {
+    countEl.textContent = count;
+    roundsEl.textContent = "Rounds: " + rounds;
+    totalEl.textContent = "Total Count: " + total;
+    targetEl.textContent = target;
+    vibrateBtn.textContent = "Vibrate: " + (vibrate ? "On" : "Off");
+    renderHistory();
+  }
+
+  function saveState() {
+    localStorage.setItem("count", count);
+    localStorage.setItem("rounds", rounds);
+    localStorage.setItem("total", total);
+    localStorage.setItem("vibrate", vibrate);
+    localStorage.setItem("history", JSON.stringify(history));
+  }
+
+  function addHistoryEntry(roundsCompleted, totalAtThatMoment) {
+    const entry = {
+      date: new Date().toLocaleString(),
+      rounds: roundsCompleted,
+      total: totalAtThatMoment
+    };
+    history.unshift(entry);
+    if (history.length > 50) history.pop(); // keep last 50
+    saveState();
+  }
+
+  function renderHistory() {
+    historyList.innerHTML = "";
+    history.forEach(item => {
+      const li = document.createElement("li");
+      li.textContent = `${item.date} → Rounds: ${item.rounds}, Total: ${item.total}`;
+      historyList.appendChild(li);
+    });
+  }
+
+  tapBtn.addEventListener("click", () => {
+    count++;
+    total++;
+    if (vibrate && navigator.vibrate) navigator.vibrate(30);
+    if (count >= target) {
+      rounds++;
+      addHistoryEntry(rounds, total);
+      count = 0;
+    }
+    saveState();
+    updateDisplay();
+  });
+
+  minusBtn.addEventListener("click", () => {
+    if (count > 0) count--;
+    if (total > 0) total--;
+    saveState();
+    updateDisplay();
+  });
+
+  resetBtn.addEventListener("click", () => {
+    count = 0;
+    rounds = 0;
+    saveState();
+    updateDisplay();
+  });
+
+  vibrateBtn.addEventListener("click", () => {
+    vibrate = !vibrate;
+    saveState();
+    updateDisplay();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.code === "Enter") {
+      tapBtn.click();
+    }
+  });
+
+  // Export CSV
+  document.getElementById("exportCSV").addEventListener("click", () => {
+    let csv = "Date,Rounds,Total\n";
+    history.forEach(item => {
+      csv += `"${item.date}",${item.rounds},${item.total}\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tasbih_history.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  // Export JSON
+  document.getElementById("exportJSON").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(history, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "tasbih_history.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
+  updateDisplay();
+</script>
+</body>
+</html>

@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Tasbih Counter</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #eee;
+      text-align: center;
+      margin: 0;
+      padding: 0;
+    }
+    h1 { margin: 1rem 0; }
+    .counter {
+      font-size: 3rem;
+      margin: 1rem 0;
+    }
+    .total {
+      font-size: 1.2rem;
+      margin: 0.5rem 0;
+      color: #aaa;
+    }
+    .rounds {
+      font-size: 1.2rem;
+      margin: 0.5rem 0;
+      color: #ccc;
+    }
+    .button {
+      width: 200px;
+      height: 200px;
+      border-radius: 50%;
+      font-size: 2rem;
+      background: #1e88e5;
+      color: #fff;
+      border: none;
+      margin: 1rem;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+    }
+    .button:active { background: #1565c0; }
+    .controls button {
+      margin: 0.5rem;
+      padding: 0.5rem 1rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: none;
+      background: #333;
+      color: #fff;
+    }
+    .controls button:hover { background: #444; }
+    .history {
+      background: #1e1e1e;
+      margin-top: 1rem;
+      padding: 1rem;
+      border-radius: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+      text-align: left;
+    }
+    .history h2 {
+      font-size: 1.2rem;
+      margin-top: 0;
+      border-bottom: 1px solid #444;
+      padding-bottom: 0.3rem;
+    }
+    .history-entry {
+      font-size: 0.9rem;
+      margin: 0.3rem 0;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <h1>Digital Tasbih Counter</h1>
+  <div class="counter" id="count">0</div>
+  <div class="rounds" id="rounds">Rounds: 0</div>
+  <div class="total" id="total">Total: 0</div>
+  <button class="button" id="tap">Tap</button>
+  <div class="controls">
+    <button id="minus">-1</button>
+    <button id="reset">Reset</button>
+    <button id="toggleVibrate">Vibration: Off</button>
+    <button id="setStep">Set Step (33)</button>
+  </div>
+  <div class="history">
+    <h2>History Log</h2>
+    <div id="historyLog"></div>
+  </div>
+
+  <script>
+    const countEl = document.getElementById('count');
+    const roundsEl = document.getElementById('rounds');
+    const totalEl = document.getElementById('total');
+    const historyEl = document.getElementById('historyLog');
+
+    let count = parseInt(localStorage.getItem('count') || '0');
+    let rounds = parseInt(localStorage.getItem('rounds') || '0');
+    let total = parseInt(localStorage.getItem('total') || '0');
+    let vibrate = JSON.parse(localStorage.getItem('vibrate') || 'false');
+    let step = parseInt(localStorage.getItem('step') || '33');
+    let history = JSON.parse(localStorage.getItem('history') || '[]');
+
+    function saveState() {
+      localStorage.setItem('count', count);
+      localStorage.setItem('rounds', rounds);
+      localStorage.setItem('total', total);
+      localStorage.setItem('vibrate', vibrate);
+      localStorage.setItem('step', step);
+      localStorage.setItem('history', JSON.stringify(history));
+    }
+
+    function updateUI() {
+      countEl.textContent = count;
+      roundsEl.textContent = `Rounds: ${rounds}`;
+      totalEl.textContent = `Total: ${total}`;
+      document.getElementById('toggleVibrate').textContent = `Vibration: ${vibrate ? "On" : "Off"}`;
+      document.getElementById('setStep').textContent = `Set Step (${step})`;
+      renderHistory();
+    }
+
+    function renderHistory() {
+      historyEl.innerHTML = history.map(entry =>
+        `<div class="history-entry">${entry.date} → Rounds: ${entry.rounds}, Total: ${entry.total}</div>`
+      ).join('');
+    }
+
+    function logSession() {
+      const today = new Date().toLocaleDateString();
+      const existing = history.find(h => h.date === today);
+      if (existing) {
+        existing.rounds = rounds;
+        existing.total = total;
+      } else {
+        history.unshift({ date: today, rounds, total });
+      }
+      history = history.slice(0, 30); // keep last 30 entries
+      saveState();
+      renderHistory();
+    }
+
+    function increment() {
+      count++;
+      total++;
+      if (vibrate && navigator.vibrate) navigator.vibrate(50);
+      if (count >= step) {
+        count = 0;
+        rounds++;
+      }
+      saveState();
+      updateUI();
+      logSession();
+    }
+
+    document.getElementById('tap').addEventListener('click', increment);
+    document.getElementById('minus').addEventListener('click', () => {
+      if (count > 0) { count--; total--; saveState(); updateUI(); }
+    });
+    document.getElementById('reset').addEventListener('click', () => {
+      count = 0; rounds = 0;
+      saveState(); updateUI(); logSession();
+    });
+    document.getElementById('toggleVibrate').addEventListener('click', () => {
+      vibrate = !vibrate;
+      saveState(); updateUI();
+    });
+    document.getElementById('setStep').addEventListener('click', () => {
+      const val = parseInt(prompt("Enter step size:", step));
+      if (!isNaN(val) && val > 0) {
+        step = val;
+        saveState(); updateUI();
+      }
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.code === "Space" || e.code === "Enter") increment();
+    });
+
+    updateUI();
+  </script>
+</body>
+</html>

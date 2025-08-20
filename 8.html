@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasbih Counter with Charts</title>
+  <script src="chart.js"></script>
+  <style>
+    body {
+      background-color: #121212;
+      color: #f1f1f1;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    .counter-btn {
+      font-size: 2rem;
+      padding: 20px 40px;
+      margin: 10px;
+      border-radius: 12px;
+      border: none;
+      cursor: pointer;
+      background: #1e88e5;
+      color: white;
+      transition: background 0.3s;
+    }
+    .counter-btn:hover { background: #1565c0; }
+    .reset-btn { background: #e53935; }
+    .reset-btn:hover { background: #b71c1c; }
+    .export-btn { background: #43a047; }
+    .export-btn:hover { background: #2e7d32; }
+    .history, .charts {
+      margin-top: 20px;
+      padding: 15px;
+      background: #1e1e1e;
+      border-radius: 10px;
+    }
+    canvas { max-width: 100%; margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>📿 Tasbih Counter</h1>
+  <h2>Count: <span id="count">0</span></h2>
+  <h3>Round: <span id="round">0</span></h3>
+  <h3>Total Lifetime: <span id="lifetime">0</span></h3>
+
+  <button class="counter-btn" onclick="increment()">+1</button>
+  <button class="counter-btn reset-btn" onclick="resetCounter()">Reset</button>
+  <button class="counter-btn export-btn" onclick="exportHistory('csv')">Export CSV</button>
+  <button class="counter-btn export-btn" onclick="exportHistory('json')">Export JSON</button>
+
+  <div class="history">
+    <h2>📜 History Log</h2>
+    <ul id="history"></ul>
+  </div>
+
+  <div class="charts">
+    <h2>📊 Progress Charts</h2>
+    <canvas id="lineChart"></canvas>
+    <canvas id="barChart"></canvas>
+  </div>
+
+<script>
+  let count = 0, round = 0;
+  let lifetime = parseInt(localStorage.getItem('lifetime')) || 0;
+  let historyLog = JSON.parse(localStorage.getItem('historyLog')) || [];
+
+  document.getElementById('lifetime').textContent = lifetime;
+
+  const historyList = document.getElementById('history');
+
+  function renderHistory() {
+    historyList.innerHTML = '';
+    historyLog.forEach(entry => {
+      let li = document.createElement('li');
+      li.textContent = `${entry.date} - Rounds: ${entry.rounds}, Total: ${entry.total}`;
+      historyList.appendChild(li);
+    });
+    updateCharts();
+  }
+
+  function increment() {
+    count++;
+    lifetime++;
+    document.getElementById('count').textContent = count;
+    document.getElementById('lifetime').textContent = lifetime;
+
+    if (count >= 33) {
+      round++;
+      count = 0;
+      document.getElementById('round').textContent = round;
+      logSession(round, lifetime);
+    }
+
+    localStorage.setItem('lifetime', lifetime);
+  }
+
+  function resetCounter() {
+    count = 0;
+    round = 0;
+    document.getElementById('count').textContent = count;
+    document.getElementById('round').textContent = round;
+  }
+
+  function logSession(rounds, total) {
+    let entry = { date: new Date().toLocaleString(), rounds, total };
+    historyLog.push(entry);
+    localStorage.setItem('historyLog', JSON.stringify(historyLog));
+    renderHistory();
+  }
+
+  function exportHistory(format) {
+    let dataStr;
+    if (format === 'csv') {
+      let csv = 'Date,Rounds,Total\n';
+      historyLog.forEach(e => csv += `${e.date},${e.rounds},${e.total}\n`);
+      dataStr = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    } else {
+      dataStr = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(historyLog, null, 2));
+    }
+
+    let link = document.createElement('a');
+    link.setAttribute('href', dataStr);
+    link.setAttribute('download', `tasbih_history.${format}`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }
+
+  // Chart.js setup
+  let lineCtx = document.getElementById('lineChart').getContext('2d');
+  let barCtx = document.getElementById('barChart').getContext('2d');
+  let lineChart, barChart;
+
+  function updateCharts() {
+    let labels = historyLog.map(e => e.date);
+    let totals = historyLog.map(e => e.total);
+    let rounds = historyLog.map(e => e.rounds);
+
+    if (lineChart) lineChart.destroy();
+    if (barChart) barChart.destroy();
+
+    lineChart = new Chart(lineCtx, {
+      type: 'line',
+      data: { labels, datasets: [{ label: 'Total Count', data: totals, borderColor: '#42a5f5', fill: false }] },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#f1f1f1' } } }, scales: { x: { ticks: { color: '#f1f1f1' } }, y: { ticks: { color: '#f1f1f1' } } } }
+    });
+
+    barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: { labels, datasets: [
+        { label: 'Rounds', data: rounds, backgroundColor: '#66bb6a' },
+        { label: 'Total', data: totals, backgroundColor: '#29b6f6' }
+      ]},
+      options: { responsive: true, plugins: { legend: { labels: { color: '#f1f1f1' } } }, scales: { x: { ticks: { color: '#f1f1f1' } }, y: { ticks: { color: '#f1f1f1' } } } }
+    });
+  }
+
+  renderHistory();
+</script>
+</body>
+</html>

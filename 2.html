@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Digital Tasbih Counter</title>
+<style>
+  :root {
+    --bg: #f5f5f5;
+    --fg: #222;
+    --primary: #4caf50;
+    --card: #fff;
+    --shadow: rgba(0, 0, 0, 0.15);
+  }
+  body.dark {
+    --bg: #121212;
+    --fg: #eee;
+    --card: #1e1e1e;
+    --shadow: rgba(0, 0, 0, 0.5);
+  }
+  body {
+    font-family: Arial, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    transition: background 0.3s, color 0.3s;
+  }
+  h1 { margin-bottom: 15px; }
+  .circle {
+    width: 180px;
+    height: 180px;
+    border-radius: 50%;
+    background: var(--card);
+    box-shadow: 0 6px 16px var(--shadow);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.5rem;
+    font-weight: bold;
+    margin: 20px;
+    position: relative;
+  }
+  svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+  }
+  .controls button {
+    padding: 18px 28px;
+    font-size: 1.3rem;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    background: var(--primary);
+    color: white;
+    box-shadow: 0 4px 10px var(--shadow);
+    transition: transform 0.1s;
+  }
+  .controls button:active { transform: scale(0.95); }
+  .settings {
+    margin-top: 5px;
+    text-align: center;
+    font-size: 1rem;
+  }
+  label { margin: 0 10px; }
+  input[type="number"] {
+    width: 70px;
+    font-size: 1rem;
+    padding: 5px;
+    border-radius: 6px;
+    border: 1px solid #aaa;
+  }
+  .toggle-dark {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    font-size: 0.9rem;
+    cursor: pointer;
+    background: var(--card);
+    padding: 5px 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px var(--shadow);
+  }
+</style>
+</head>
+<body>
+  <div class="toggle-dark" id="toggleDark">🌙 Dark</div>
+  <h1>Digital Tasbih</h1>
+
+  <div class="circle" id="circle">
+    <span id="count">0</span>
+    <svg width="180" height="180">
+      <circle cx="90" cy="90" r="80" stroke="#444" stroke-width="6" fill="none"/>
+      <circle id="progress" cx="90" cy="90" r="80" stroke="#4caf50" stroke-width="6" fill="none"
+        stroke-dasharray="502" stroke-dashoffset="502"/>
+    </svg>
+  </div>
+
+  <div class="controls">
+    <button id="increment">+1</button>
+    <button id="decrement">−1</button>
+    <button id="reset">Reset</button>
+  </div>
+
+  <div class="settings">
+    <label>Target: <input type="number" id="target" value="33"></label>
+    <label><input type="checkbox" id="vibrate"> Vibration</label>
+    <label><input type="checkbox" id="sound"> Sound</label>
+  </div>
+
+<script>
+  const countEl = document.getElementById("count");
+  const progressEl = document.getElementById("progress");
+  const incrementBtn = document.getElementById("increment");
+  const decrementBtn = document.getElementById("decrement");
+  const resetBtn = document.getElementById("reset");
+  const targetInput = document.getElementById("target");
+  const vibrateToggle = document.getElementById("vibrate");
+  const soundToggle = document.getElementById("sound");
+  const toggleDarkBtn = document.getElementById("toggleDark");
+
+  let count = parseInt(localStorage.getItem("tasbih-count")) || 0;
+  let target = parseInt(localStorage.getItem("tasbih-target")) || 33;
+  let darkMode = localStorage.getItem("tasbih-dark") === "true";
+  let autoIncrementInterval;
+
+  if (darkMode) document.body.classList.add("dark");
+
+  targetInput.value = target;
+  updateDisplay();
+
+  function updateDisplay() {
+    countEl.textContent = count;
+    const percent = Math.min(count / target, 1);
+    const offset = 502 - (502 * percent);
+    progressEl.style.strokeDashoffset = offset;
+    localStorage.setItem("tasbih-count", count);
+    localStorage.setItem("tasbih-target", target);
+  }
+
+  function beep() {
+    if (!soundToggle.checked) return;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(600, ctx.currentTime);
+    osc.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+  }
+
+  function vibrate() {
+    if (vibrateToggle.checked && navigator.vibrate) navigator.vibrate(50);
+  }
+
+  function increment() {
+    count++;
+    updateDisplay();
+    beep();
+    vibrate();
+  }
+
+  function decrement() {
+    if (count > 0) count--;
+    updateDisplay();
+  }
+
+  incrementBtn.addEventListener("click", increment);
+  decrementBtn.addEventListener("click", decrement);
+  resetBtn.addEventListener("click", () => { count = 0; updateDisplay(); });
+
+  targetInput.addEventListener("change", () => {
+    target = parseInt(targetInput.value) || 33;
+    updateDisplay();
+  });
+
+  // Keyboard
+  document.addEventListener("keydown", (e) => {
+    if (e.code === "Space" || e.code === "Enter") {
+      e.preventDefault();
+      increment();
+    }
+  });
+
+  // Long-press
+  incrementBtn.addEventListener("mousedown", () => {
+    autoIncrementInterval = setInterval(increment, 200);
+  });
+  document.addEventListener("mouseup", () => clearInterval(autoIncrementInterval));
+
+  // Dark mode toggle
+  toggleDarkBtn.addEventListener("click", () => {
+    document.body.classList.toggle("dark");
+    darkMode = document.body.classList.contains("dark");
+    toggleDarkBtn.textContent = darkMode ? "☀️ Light" : "🌙 Dark";
+    localStorage.setItem("tasbih-dark", darkMode);
+  });
+  toggleDarkBtn.textContent = darkMode ? "☀️ Light" : "🌙 Dark";
+</script>
+</body>
+</html>

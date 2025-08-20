@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tasbih Counter with Charts</title>
+  <script src="chart.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #121212;
+      color: #ffffff;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+    .counter-btn {
+      font-size: 2em;
+      padding: 20px 40px;
+      margin: 10px;
+      border: none;
+      border-radius: 12px;
+      background-color: #1e88e5;
+      color: white;
+      cursor: pointer;
+    }
+    .reset-btn {
+      background-color: #e53935;
+    }
+    .stats {
+      margin-top: 15px;
+      font-size: 1.2em;
+    }
+    .history-log {
+      margin-top: 20px;
+      width: 90%;
+      max-width: 600px;
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 10px;
+    }
+    canvas {
+      margin-top: 20px;
+      max-width: 90%;
+    }
+    .toggle-section {
+      margin-top: 15px;
+    }
+    .toggle-section label {
+      margin-right: 15px;
+    }
+    .highlighted {
+      background: rgba(30, 136, 229, 0.4);
+    }
+  </style>
+</head>
+<body>
+  <h1>📿 Tasbih Counter</h1>
+  <button class="counter-btn" onclick="incrementCounter()">Count</button>
+  <button class="counter-btn reset-btn" onclick="resetCounter()">Reset</button>
+  <div class="stats">
+    <p>Current Count: <span id="count">0</span></p>
+    <p>Rounds Completed: <span id="rounds">0</span></p>
+    <p>Total Count (Lifetime): <span id="totalCount">0</span></p>
+  </div>
+
+  <div class="history-log">
+    <h3>History Log</h3>
+    <ul id="history"></ul>
+    <button onclick="exportHistory('csv')">Export CSV</button>
+    <button onclick="exportHistory('json')">Export JSON</button>
+  </div>
+
+  <div class="toggle-section">
+    <label><input type="checkbox" id="toggleLine" checked onchange="toggleChart('line')"> Show Line Chart</label>
+    <label><input type="checkbox" id="toggleBar" checked onchange="toggleChart('bar')"> Show Bar Chart</label>
+  </div>
+
+  <canvas id="lineChart"></canvas>
+  <canvas id="barChart"></canvas>
+
+  <script>
+    let count = 0;
+    let rounds = 0;
+    let totalCount = parseInt(localStorage.getItem("lifetimeTotal")) || 0;
+    let history = JSON.parse(localStorage.getItem("tasbihHistory")) || [];
+
+    const countEl = document.getElementById("count");
+    const roundsEl = document.getElementById("rounds");
+    const totalCountEl = document.getElementById("totalCount");
+    const historyEl = document.getElementById("history");
+
+    function incrementCounter() {
+      count++;
+      totalCount++;
+      if (count >= 33) {
+        rounds++;
+        addHistory(rounds, count);
+        count = 0;
+      }
+      updateUI();
+      saveData();
+      updateCharts();
+    }
+
+    function resetCounter() {
+      count = 0;
+      rounds = 0;
+      updateUI();
+    }
+
+    function updateUI() {
+      countEl.textContent = count;
+      roundsEl.textContent = rounds;
+      totalCountEl.textContent = totalCount;
+    }
+
+    function addHistory(roundsCompleted, lastCount) {
+      const date = new Date().toLocaleString();
+      const entry = { date, rounds: roundsCompleted, total: totalCount };
+      history.push(entry);
+      renderHistory();
+      saveData();
+    }
+
+    function renderHistory() {
+      historyEl.innerHTML = "";
+      history.forEach((entry, index) => {
+        const li = document.createElement("li");
+        li.textContent = `${entry.date}: ${entry.rounds} rounds, Total ${entry.total}`;
+        li.onclick = () => highlightData(index);
+        historyEl.appendChild(li);
+      });
+    }
+
+    function highlightData(index) {
+      lineChart.setActiveElements([{ datasetIndex: 0, index }]);
+      barChart.setActiveElements([{ datasetIndex: 0, index }, { datasetIndex: 1, index }]);
+      lineChart.update();
+      barChart.update();
+    }
+
+    function saveData() {
+      localStorage.setItem("lifetimeTotal", totalCount);
+      localStorage.setItem("tasbihHistory", JSON.stringify(history));
+    }
+
+    function exportHistory(format) {
+      if (format === 'csv') {
+        let csv = "Date,Rounds,Total\n";
+        history.forEach(entry => {
+          csv += `${entry.date},${entry.rounds},${entry.total}\n`;
+        });
+        downloadFile(csv, 'tasbih_history.csv');
+      } else if (format === 'json') {
+        const json = JSON.stringify(history, null, 2);
+        downloadFile(json, 'tasbih_history.json');
+      }
+    }
+
+    function downloadFile(content, filename) {
+      const blob = new Blob([content], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // Chart.js setup
+    const lineCtx = document.getElementById('lineChart').getContext('2d');
+    const barCtx = document.getElementById('barChart').getContext('2d');
+
+    let lineChart = new Chart(lineCtx, {
+      type: 'line',
+      data: {
+        labels: history.map(h => h.date),
+        datasets: [{
+          label: 'Total Count Over Time',
+          data: history.map(h => h.total),
+          borderColor: 'cyan',
+          fill: false
+        }]
+      },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { x: { ticks: { color: '#fff' } }, y: { ticks: { color: '#fff' } } } }
+    });
+
+    let barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: history.map(h => h.date),
+        datasets: [
+          {
+            label: 'Rounds',
+            data: history.map(h => h.rounds),
+            backgroundColor: 'orange'
+          },
+          {
+            label: 'Total',
+            data: history.map(h => h.total),
+            backgroundColor: 'limegreen'
+          }
+        ]
+      },
+      options: { responsive: true, plugins: { legend: { labels: { color: '#fff' } } }, scales: { x: { ticks: { color: '#fff' } }, y: { ticks: { color: '#fff' } } } }
+    });
+
+    function updateCharts() {
+      lineChart.data.labels = history.map(h => h.date);
+      lineChart.data.datasets[0].data = history.map(h => h.total);
+      lineChart.update();
+
+      barChart.data.labels = history.map(h => h.date);
+      barChart.data.datasets[0].data = history.map(h => h.rounds);
+      barChart.data.datasets[1].data = history.map(h => h.total);
+      barChart.update();
+    }
+
+    function toggleChart(type) {
+      if (type === 'line') {
+        document.getElementById('lineChart').style.display = document.getElementById('toggleLine').checked ? 'block' : 'none';
+      } else if (type === 'bar') {
+        document.getElementById('barChart').style.display = document.getElementById('toggleBar').checked ? 'block' : 'none';
+      }
+    }
+
+    renderHistory();
+    updateUI();
+    updateCharts();
+  </script>
+</body>
+</html>
