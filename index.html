@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Digital Tasbih Counter</title>
+<title>Tasbih</title>
 <style>
   body {
     font-family: Arial, sans-serif;
@@ -71,26 +71,32 @@
   </div>
 
   <div class="settings">
-    <label>Target: <input type="number" id="target" value="33"></label>
+    <label>Target: <input type="number" id="target" value="100"></label>
     <label><input type="checkbox" id="vibrate"> Vibration</label>
     <label><input type="checkbox" id="sound"> Sound</label>
   </div>
 
 <script>
-  const countEl = document.getElementById("count");
-  const progressEl = document.getElementById("progress");
-  const incrementBtn = document.getElementById("increment");
-  const decrementBtn = document.getElementById("decrement");
-  const resetBtn = document.getElementById("reset");
-  const targetInput = document.getElementById("target");
-  const vibrateToggle = document.getElementById("vibrate");
-  const soundToggle = document.getElementById("sound");
+  const countEl = document.querySelector("#count");
+  const progressEl = document.querySelector("#progress");
+  const incrementBtn = document.querySelector("#increment");
+  const decrementBtn = document.querySelector("#decrement");
+  const resetBtn = document.querySelector("#reset");
+  const targetInput = document.querySelector("#target");
+  const vibrateToggle = document.querySelector("#vibrate");
+  const soundToggle = document.querySelector("#sound");
 
   let count = parseInt(localStorage.getItem("tasbih-count")) || 0;
-  let target = parseInt(localStorage.getItem("tasbih-target")) || 33;
-  let autoIncrementInterval;
+  let target = parseInt(localStorage.getItem("tasbih-target")) || 100;
 
+  let vibrate = localStorage.getItem("tasbih-vibrate") === "true";  
+  let sound = localStorage.getItem("tasbih-sound") === "true";
+
+  // Set UI state properly
   targetInput.value = target;
+  vibrateToggle.checked = vibrate;
+  soundToggle.checked = sound;
+
   updateDisplay();
 
   function updateDisplay() {
@@ -98,12 +104,16 @@
     const percent = Math.min(count / target, 1);
     const offset = 420 - (420 * percent);
     progressEl.style.strokeDashoffset = offset;
+
+    // Save correct values
     localStorage.setItem("tasbih-count", count);
     localStorage.setItem("tasbih-target", target);
+    localStorage.setItem("tasbih-vibrate", vibrate);
+    localStorage.setItem("tasbih-sound", sound);
   }
 
   function beep() {
-    if (!soundToggle.checked) return;
+    if (!sound) return;
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const oscillator = ctx.createOscillator();
     oscillator.type = "sine";
@@ -113,8 +123,8 @@
     oscillator.stop(ctx.currentTime + 0.1);
   }
 
-  function vibrate() {
-    if (vibrateToggle.checked && navigator.vibrate) {
+  function vibrateFun() {
+    if (vibrate && navigator.vibrate) {
       navigator.vibrate(50);
     }
   }
@@ -123,7 +133,7 @@
     count++;
     updateDisplay();
     beep();
-    vibrate();
+    vibrateFun();
   }
 
   function decrement() {
@@ -133,22 +143,34 @@
 
   incrementBtn.addEventListener("click", increment);
   decrementBtn.addEventListener("click", decrement);
-  resetBtn.addEventListener("click", () => { count = 0; updateDisplay(); });
-
-  targetInput.addEventListener("change", () => {
-    target = parseInt(targetInput.value) || 33;
+  resetBtn.addEventListener("click", () => {
+    count = 0;
     updateDisplay();
   });
 
-  // Keyboard support
-  document.addEventListener("keydown", (e) => {
+  targetInput.addEventListener("change", () => {
+    target = parseInt(targetInput.value) || 100;
+    updateDisplay();
+  });
+
+  vibrateToggle.addEventListener("change", () => {
+    vibrate = vibrateToggle.checked;
+    updateDisplay();
+  });
+
+  soundToggle.addEventListener("change", () => {
+    sound = soundToggle.checked;
+    updateDisplay();
+  });
+
+  document.addEventListener("keydown", e => {
     if (e.code === "Space" || e.code === "Enter") {
       e.preventDefault();
       increment();
     }
   });
 
-  // Long-press auto increment
+  let autoIncrementInterval;
   incrementBtn.addEventListener("mousedown", () => {
     autoIncrementInterval = setInterval(increment, 200);
   });
