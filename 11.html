@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tasbih</title>
+<style>
+  :root{
+    --green: #4caf50;
+    --green-dark: #388e3c;
+    --bg: #f5f5f5;
+    --circle-size: 200px;
+  }
+  *{box-sizing:border-box}
+  body {
+    font-family: Arial, sans-serif;
+    background: var(--bg);
+    margin: 0;
+    min-height:100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 420px;
+    position: relative;
+    text-align: center;
+  }
+
+  /* Reset button top-right */
+  #reset {
+    position: absolute;
+    right: 0;
+    top: 0;
+    margin: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    border: none;
+    background: #fff;
+    color: #333;
+    box-shadow: 0 2px 6px rgba(0,0,0,.08);
+    cursor: pointer;
+  }
+  #reset:active{transform:translateY(1px)}
+
+  .circle-wrap {
+    margin: 30px auto 10px;
+    width: var(--circle-size);
+    height: var(--circle-size);
+    position: relative;
+  }
+
+  .progress-svg{
+    position: absolute;
+    inset: 0;
+    transform: rotate(-90deg);
+    pointer-events: none;
+  }
+
+  .counter-display {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    border: 6px solid var(--green);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2.25rem;
+    font-weight: 700;
+    background: #fff;
+    position: relative;
+  }
+
+  /* Big circular increment button overlapping */
+  #increment {
+    width: calc(var(--circle-size) * 0.75);
+    height: calc(var(--circle-size) * 0.75);
+    border-radius: 50%;
+    border: none;
+    background: var(--green);
+    color: white;
+    font-size: 1.6rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.12);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  #increment:active { background: var(--green-dark); transform: scale(.99); }
+
+  .meta {
+    margin-top: 12px;
+    display:flex;
+    gap:12px;
+    justify-content:center;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+
+  .timer {
+    font-size: 0.95rem;
+    color: #333;
+    background: #fff;
+    padding: 6px 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.06);
+  }
+
+  .controls-row {
+    margin-top: 14px;
+    display:flex;
+    gap:10px;
+    align-items:center;
+    justify-content:center;
+    flex-wrap:wrap;
+  }
+
+  .settings {
+    margin-top: 14px;
+    background:#fff;
+    padding:12px;
+    border-radius:10px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.04);
+  }
+
+  .settings label { margin-right: 10px; font-size:0.95rem; }
+
+  input[type="number"]{
+    width:70px;
+    padding:6px 8px;
+    font-size:0.95rem;
+    border-radius:6px;
+    border:1px solid #ddd;
+  }
+
+  input[type="checkbox"] { transform: scale(1.05); margin-right:6px; }
+
+  /* small responsive tweak */
+  @media (max-width:420px){
+    :root{ --circle-size: 170px; }
+    #increment { font-size:1.3rem; }
+  }
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Tasbih counter app">
+    <button id="reset" title="Reset counter">Reset</button>
+
+    <div class="circle-wrap" aria-hidden="false">
+      <svg class="progress-svg" width="100%" height="100%" viewBox="0 0 150 150" preserveAspectRatio="xMidYMid meet" >
+        <circle cx="75" cy="75" r="67" stroke="#e6e6e6" stroke-width="6" fill="none" />
+        <circle id="progress" cx="75" cy="75" r="67" stroke="#4caf50" stroke-width="6" fill="none" stroke-dasharray="420" stroke-dashoffset="420"/>
+      </svg>
+
+      <div class="counter-display" id="circle">
+        <div style="text-align:center">
+          <div id="count" style="font-size:2rem">0</div>
+          <div style="font-size:0.85rem;color:#666;margin-top:4px">Count</div>
+        </div>
+      </div>
+      <!-- increment placed visually over the circle center -->
+      <div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none;">
+        <button id="increment" aria-label="Increment counter" style="pointer-events:auto;">+1</button>
+      </div>
+    </div>
+
+    <div class="meta">
+      <div class="timer" id="timer">Time: 00:00:00</div>
+      <div id="status" class="timer" aria-live="polite">Target: 100</div>
+    </div>
+
+    <div class="settings" role="region" aria-label="Settings">
+      <div style="display:flex; align-items:center; gap:12px; justify-content:center; flex-wrap:wrap">
+        <label>Target: <input id="target" type="number" min="1" value="100" /></label>
+        <label><input id="vibrate" type="checkbox" /> Vibration</label>
+        <label><input id="sound" type="checkbox" /> Sound</label>
+      </div>
+    </div>
+  </div>
+
+<script>
+/*
+ Helper get/set functions (as requested)
+*/
+const get = (k, d) => {
+  try {
+    const raw = localStorage.getItem(`tasbih-${k}`);
+    if (raw === null) return d;
+    return JSON.parse(raw);
+  } catch (e) {
+    console.warn("tasbih:get parse error", k, e);
+    return d;
+  }
+};
+const set = (k, v) => {
+  try {
+    localStorage.setItem(`tasbih-${k}`, JSON.stringify(v));
+  } catch (e) {
+    console.warn("tasbih:set error", k, e);
+  }
+};
+
+/* Elements */
+const countEl = document.querySelector("#count");
+const progressEl = document.querySelector("#progress");
+const incrementBtn = document.querySelector("#increment");
+const resetBtn = document.querySelector("#reset");
+const targetInput = document.querySelector("#target");
+const vibrateToggle = document.querySelector("#vibrate");
+const soundToggle = document.querySelector("#sound");
+const timerEl = document.querySelector("#timer");
+const statusEl = document.querySelector("#status");
+
+/* State restored via helpers */
+let count = Number(get("count", 0)) || 0;
+let target = Number(get("target", 100)) || 100;
+let vibrate = Boolean(get("vibrate", false));
+let sound = Boolean(get("sound", false));
+
+/*
+ Timer logic:
+- We store startTime (timestamp in ms) when user first increments in a session
+- We store elapsed (ms) to persist across reloads
+- Timer display = elapsed + (now - startTime) if running
+*/
+let startTime = get("startTime", null); // timestamp ms or null
+let savedElapsed = Number(get("elapsed", 0)) || 0; // ms
+
+/* internal: whether we've already signaled target sound for the current cross
+   This prevents repeated target-indicator on each increment if user holds pointer.
+   We'll reset this when count falls below target or on reset.
+*/
+let signaledTarget = get("signaledTarget", false) || false;
+
+/* UI initial setup */
+targetInput.value = target;
+vibrateToggle.checked = vibrate;
+soundToggle.checked = sound;
+updateDisplay();
+
+/* Timer interval */
+let timerInterval = null;
+function startTimerIfNeeded() {
+  if (!startTime) {
+    startTime = Date.now();
+    set("startTime", startTime);
+  }
+  if (timerInterval) return;
+  timerInterval = setInterval(() => {
+    updateTimerDisplay();
+  }, 500);
+}
+function stopTimer() {
+  if (startTime) {
+    // accumulate elapsed time
+    savedElapsed += Date.now() - startTime;
+    set("elapsed", savedElapsed);
+  }
+  startTime = null;
+  set("startTime", null);
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  updateTimerDisplay();
+}
+function resetTimer() {
+  startTime = null;
+  savedElapsed = 0;
+  set("startTime", null);
+  set("elapsed", 0);
+  if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
+  updateTimerDisplay();
+}
+function updateTimerDisplay() {
+  let total = savedElapsed;
+  if (startTime) {
+    total += (Date.now() - startTime);
+  }
+  // convert ms to hh:mm:ss
+  const seconds = Math.floor(total / 1000);
+  const h = String(Math.floor(seconds / 3600)).padStart(2,"0");
+  const m = String(Math.floor((seconds % 3600) / 60)).padStart(2,"0");
+  const s = String(seconds % 60).padStart(2,"0");
+  timerEl.textContent = `Time: ${h}:${m}:${s}`;
+}
+
+/* Update UI and persist using helpers */
+function updateDisplay() {
+  countEl.textContent = String(count);
+  const percent = Math.min(count / Math.max(target,1), 1);
+  const offset = 420 - (420 * percent);
+  progressEl.style.strokeDashoffset = offset;
+
+  // persist state using helpers
+  set("count", count);
+  set("target", target);
+  set("vibrate", vibrate);
+  set("sound", sound);
+  set("elapsed", savedElapsed);
+  set("startTime", startTime);
+  set("signaledTarget", signaledTarget);
+
+  // status text
+  statusEl.textContent = `Target: ${target}`;
+
+  // update timer display (immediately)
+  updateTimerDisplay();
+}
+
+/* Audio helpers */
+function playBeep({freq=600, length=0.08} = {}) {
+  if (!sound) return;
+  // Some browsers require user gesture to start audio; this function runs after user clicks.
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const o = ctx.createOscillator();
+    const g = ctx.createGain();
+    o.type = "sine";
+    o.frequency.setValueAtTime(freq, ctx.currentTime);
+    g.gain.setValueAtTime(0.0001, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.12, ctx.currentTime + 0.01);
+    o.connect(g);
+    g.connect(ctx.destination);
+    o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + length);
+    o.stop(ctx.currentTime + length + 0.02);
+    // close context after a short delay
+    setTimeout(()=>{ if (ctx.close) ctx.close(); }, 300);
+  } catch(e){
+    // ignore audio errors
+    console.warn("beep failed", e);
+  }
+}
+
+/* Vibrate helper */
+function vibratePulse(ms = 50) {
+  if (vibrate && navigator.vibrate) {
+    try { navigator.vibrate(ms); } catch(e){ /* ignore */ }
+  }
+}
+
+/* Increment logic */
+function increment() {
+  // start timer on first increment if not running
+  if (!startTime && savedElapsed === 0) {
+    // fresh session
+    startTimerIfNeeded();
+  } else if (!startTime && savedElapsed > 0) {
+    // user resumed; start fresh running timer
+    startTimerIfNeeded();
+  }
+
+  count = Number(count) + 1;
+  // check target crossing
+  if (count >= target) {
+    // signal indicator sound (different tone)
+    // play special sound only once per crossing unless count drops below target
+    if (!signaledTarget) {
+      // higher frequency/longer beep for target reached
+      playBeep({freq: 980, length: 0.18});
+      signaledTarget = true;
+      set("signaledTarget", signaledTarget);
+    } else {
+      // normal short feedback too
+      playBeep({freq: 700, length: 0.06});
+    }
+  } else {
+    // normal increment feedback
+    playBeep({freq: 600, length: 0.06});
+  }
+  vibratePulse(50);
+  updateDisplay();
+}
+
+/* Since decrement feature removed, nothing for decrement */
+
+/* Reset logic with confirmation */
+resetBtn.addEventListener("click", () => {
+  const confirmed = confirm("Are you sure you want to reset the counter and timer?");
+  if (!confirmed) return;
+  // reset state
+  count = 0;
+  signaledTarget = false;
+  set("signaledTarget", signaledTarget);
+  updateDisplay();
+  resetTimer();
+});
+
+/* Event listeners */
+incrementBtn.addEventListener("click", (e) => {
+  e.preventDefault();
+  increment();
+});
+
+/* long-press auto increment (mouse and touch) */
+let autoInterval = null;
+function startAutoInc(){
+  if (autoInterval) return;
+  autoInterval = setInterval(() => increment(), 160);
+}
+function stopAutoInc(){
+  if (autoInterval) {
+    clearInterval(autoInterval);
+    autoInterval = null;
+  }
+}
+incrementBtn.addEventListener("mousedown", (e) => { e.preventDefault(); startAutoInc(); });
+document.addEventListener("mouseup", () => stopAutoInc());
+incrementBtn.addEventListener("touchstart", (e) => { e.preventDefault(); startAutoInc(); }, {passive:false});
+document.addEventListener("touchend", () => stopAutoInc());
+
+/* keyboard support: space or enter to increment */
+document.addEventListener("keydown", (e) => {
+  if (e.code === "Space" || e.code === "Enter") {
+    e.preventDefault();
+    increment();
+  }
+});
+
+/* Settings handlers */
+targetInput.addEventListener("change", () => {
+  const val = Number(targetInput.value) || 1;
+  target = Math.max(1, Math.floor(val));
+  // reset signaled flag if target moved above current count (so indicator can be triggered later)
+  if (count < target) {
+    signaledTarget = false;
+    set("signaledTarget", signaledTarget);
+  }
+  set("target", target);
+  updateDisplay();
+});
+
+vibrateToggle.addEventListener("change", () => {
+  vibrate = vibrateToggle.checked;
+  set("vibrate", vibrate);
+  updateDisplay();
+});
+
+soundToggle.addEventListener("change", () => {
+  sound = soundToggle.checked;
+  set("sound", sound);
+  updateDisplay();
+});
+
+/* Restore timer state on load:
+   If startTime exists, resume timer (and ensure savedElapsed present).
+*/
+(function initOnLoad(){
+  // if startTime present, ensure timer runs
+  if (startTime) {
+    // If startTime stored as string, ensure numeric
+    startTime = Number(startTime) || Date.now();
+    startTimerIfNeeded();
+  } else {
+    // no running session — still show saved elapsed
+    updateTimerDisplay();
+  }
+  // Persist initial state
+  updateDisplay();
+})();
+</script>
+</body>
+</html>

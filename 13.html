@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Tasbih Counter</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    background: #f0f0f0;
+    margin: 0;
+    padding: 20px;
+  }
+
+  .tasbih-container {
+    max-width: 400px;
+    margin: auto;
+  }
+
+  .progress-circle-container {
+    position: relative;
+    width: 250px;
+    height: 250px;
+    margin: auto;
+  }
+
+  svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .progress-bg {
+    stroke: #ddd;
+    stroke-width: 12;
+    fill: none;
+  }
+
+  .progress-bar {
+    stroke: #0d6efd;
+    stroke-width: 12;
+    fill: none;
+    stroke-linecap: round;
+    stroke-dasharray: 420;
+    stroke-dashoffset: 420;
+    transition: stroke-dashoffset 0.3s ease;
+  }
+
+  .percentage-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 42px;
+    font-weight: bold;
+    color: #333;
+  }
+
+  .controls {
+    margin-top: 20px;
+  }
+
+  .main-btn {
+    background: #0d6efd;
+    color: white;
+    border: none;
+    padding: 20px 40px;
+    font-size: 22px;
+    border-radius: 50px;
+    margin: 10px;
+    cursor: pointer;
+  }
+
+  .small-btn {
+    background: #ccc;
+    padding: 10px 20px;
+    border-radius: 10px;
+    border: none;
+    cursor: pointer;
+  }
+
+  input {
+    padding: 10px;
+    font-size: 18px;
+    width: 80px;
+    margin-top: 10px;
+  }
+
+  .switch {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    margin: 20px 0;
+  }
+
+  /* ===========================
+     MODAL DESIGN
+  =============================*/
+  .modal {
+    display: none;
+    position: fixed;
+    z-index: 9999;
+    inset: 0;
+    background: rgba(0,0,0,0.45);
+    backdrop-filter: blur(4px);
+    justify-content: center;
+    align-items: center;
+  }
+
+  .modal.show {
+    display: flex;
+  }
+
+  .modal-content {
+    background: white;
+    padding: 25px;
+    width: 300px;
+    border-radius: 15px;
+    text-align: center;
+    animation: fadeIn 0.25s ease;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.25);
+  }
+
+  .modal-buttons {
+    margin-top: 20px;
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .yes-btn {
+    background: #e63946;
+    color: white;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .no-btn {
+    background: #aaa;
+    padding: 10px 18px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: scale(.9); }
+    to { opacity: 1; transform: scale(1); }
+  }
+</style>
+</head>
+<body>
+
+<div class="tasbih-container">
+
+  <div class="progress-circle-container">
+    <svg>
+      <circle class="progress-bg" cx="125" cy="125" r="67"></circle>
+      <circle class="progress-bar" cx="125" cy="125" r="67"></circle>
+    </svg>
+    <div id="count" class="percentage-text">0</div>
+  </div>
+
+  <div class="controls">
+    <button id="increment" class="main-btn">Count +</button>
+    <br>
+
+    <button id="decrement" class="small-btn">-1</button>
+    <button id="reset" class="small-btn">Reset</button>
+
+    <br><br>
+
+    <label>Target:</label>
+    <input type="number" id="target" min="1" value="100">
+  </div>
+
+  <div class="switch">
+    <label>Vibrate</label>
+    <input type="checkbox" id="vibrate">
+
+    <label>Sound</label>
+    <input type="checkbox" id="sound">
+  </div>
+
+</div>
+
+<!-- ===========================
+     CUSTOM RESET MODAL
+=========================== -->
+<div id="confirmModal" class="modal">
+  <div class="modal-content">
+    <h3>Reset Counter?</h3>
+    <p>This will reset your tasbih count to 0.</p>
+
+    <div class="modal-buttons">
+      <button id="confirmYes" class="yes-btn">Reset</button>
+      <button id="confirmNo" class="no-btn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  const countEl = document.querySelector("#count");
+  const progressEl = document.querySelector(".progress-bar");
+
+  const incrementBtn = document.querySelector("#increment");
+  const decrementBtn = document.querySelector("#decrement");
+  const resetBtn = document.querySelector("#reset");
+
+  const targetInput = document.querySelector("#target");
+  const vibrateToggle = document.querySelector("#vibrate");
+  const soundToggle = document.querySelector("#sound");
+
+  let count = parseInt(localStorage.getItem("tasbih-count")) || 0;
+  let target = parseInt(localStorage.getItem("tasbih-target")) || 100;
+
+  let vibrate = localStorage.getItem("tasbih-vibrate") === "true";
+  let sound = localStorage.getItem("tasbih-sound") === "true";
+
+  targetInput.value = target;
+  vibrateToggle.checked = vibrate;
+  soundToggle.checked = sound;
+
+  updateDisplay();
+
+  function updateDisplay() {
+    countEl.textContent = count;
+    const percent = Math.min(count / target, 1);
+    const offset = 420 - 420 * percent;
+    progressEl.style.strokeDashoffset = offset;
+
+    localStorage.setItem("tasbih-count", count);
+    localStorage.setItem("tasbih-target", target);
+    localStorage.setItem("tasbih-vibrate", vibrate);
+    localStorage.setItem("tasbih-sound", sound);
+  }
+
+  function beep() {
+    if (!sound) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    osc.type = "sine";
+    osc.frequency.value = 600;
+    osc.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+  }
+
+  function vibrateFun() {
+    if (vibrate && navigator.vibrate) navigator.vibrate(50);
+  }
+
+  function increment() {
+    count++;
+    updateDisplay();
+    beep();
+    vibrateFun();
+  }
+
+  function decrement() {
+    if (count > 0) count--;
+    updateDisplay();
+  }
+
+  incrementBtn.addEventListener("click", increment);
+  decrementBtn.addEventListener("click", decrement);
+
+  targetInput.addEventListener("change", () => {
+    target = parseInt(targetInput.value) || 100;
+    updateDisplay();
+  });
+
+  vibrateToggle.addEventListener("change", () => {
+    vibrate = vibrateToggle.checked;
+    updateDisplay();
+  });
+
+  soundToggle.addEventListener("change", () => {
+    sound = soundToggle.checked;
+    updateDisplay();
+  });
+
+  // ===========================
+  // CUSTOM RESET MODAL LOGIC
+  // ===========================
+  const modal = document.getElementById("confirmModal");
+  const confirmYes = document.getElementById("confirmYes");
+  const confirmNo = document.getElementById("confirmNo");
+
+  resetBtn.addEventListener("click", () => {
+    modal.classList.add("show");
+  });
+
+  confirmYes.addEventListener("click", () => {
+    count = 0;
+    updateDisplay();
+    modal.classList.remove("show");
+  });
+
+  confirmNo.addEventListener("click", () => {
+    modal.classList.remove("show");
+  });
+
+  // SPACE/ENTER keyboard increment
+  document.addEventListener("keydown", e => {
+    if (e.code === "Space" || e.code === "Enter") {
+      e.preventDefault();
+      increment();
+    }
+  });
+</script>
+
+</body>
+</html>

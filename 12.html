@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tasbih</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f5f5f5;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+  }
+  h1 { margin-bottom: 10px; }
+  .counter {
+    font-size: 3rem;
+    margin: 20px;
+  }
+  .circle {
+    width: 150px;
+    height: 150px;
+    border-radius: 50%;
+    border: 6px solid #4caf50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 2rem;
+    font-weight: bold;
+    margin: 10px;
+    position: relative;
+  }
+  .controls button {
+    padding: 10px 20px;
+    font-size: 1rem;
+    margin: 5px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    background: #4caf50;
+    color: white;
+  }
+  .controls button:active { background: #388e3c; }
+  .settings { margin-top: 10px; }
+  label { margin: 0 10px; }
+  input[type="number"] {
+    width: 60px;
+    font-size: 1rem;
+    padding: 5px;
+    margin-left: 5px;
+  }
+  svg { position: absolute; top: 0; left: 0; transform: rotate(-90deg); }
+</style>
+</head>
+<body>
+  <div class="circle" id="circle">
+    <span id="count">0</span>
+    <svg width="150" height="150">
+      <circle cx="75" cy="75" r="67" stroke="#ccc" stroke-width="6" fill="none"/>
+      <circle id="progress" cx="75" cy="75" r="67" stroke="#4caf50" stroke-width="6" fill="none" stroke-dasharray="420" stroke-dashoffset="420"/>
+    </svg>
+  </div>
+
+  <div class="controls">
+    <button id="increment">+1</button>
+    <button id="decrement">−1</button>
+    <button id="reset">Reset</button>
+  </div>
+
+  <div class="settings">
+    <label>Target: <input type="number" id="target" value="100"></label>
+    <label><input type="checkbox" id="vibrate"> Vibration</label>
+    <label><input type="checkbox" id="sound"> Sound</label>
+  </div>
+
+<script>
+  const countEl = document.querySelector("#count");
+  const progressEl = document.querySelector("#progress");
+  const incrementBtn = document.querySelector("#increment");
+  const decrementBtn = document.querySelector("#decrement");
+  const resetBtn = document.querySelector("#reset");
+  const targetInput = document.querySelector("#target");
+  const vibrateToggle = document.querySelector("#vibrate");
+  const soundToggle = document.querySelector("#sound");
+
+  let count = parseInt(localStorage.getItem("tasbih-count")) || 0;
+  let target = parseInt(localStorage.getItem("tasbih-target")) || 100;
+  let vibrate = localStorage.getItem("tasbih-vibrate") || false;
+  let sound = localStorage.getItem("tasbih-sound") || false;
+  let autoIncrementInterval;
+
+  targetInput.value = target;
+  updateDisplay();
+
+  function updateDisplay() {
+    countEl.textContent = count;
+    const percent = Math.min(count / target, 1);
+    const offset = 420 - (420 * percent);
+    progressEl.style.strokeDashoffset = offset;
+    localStorage.setItem("tasbih-count", count);
+    localStorage.setItem("tasbih-target", target);
+    localStorage.setItem("tasbih-vibrate", vibrate);
+    localStorage.setItem("tasbih-sound", sound);
+    vibrateToggle.setAttribute('checked', vibrate);
+    soundToggle.setAttribute('checked', sound);
+  }
+
+  function beep() {
+    if (!soundToggle.checked) return;
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = ctx.createOscillator();
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(600, ctx.currentTime);
+    oscillator.connect(ctx.destination);
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.1);
+  }
+
+  function vibrateFun() {
+    if (vibrateToggle.checked && navigator.vibrate) {
+      navigator.vibrate(50);
+    }
+  }
+
+  function increment() {
+    count++;
+    updateDisplay();
+    beep();
+    vibrateFun();
+  }
+
+  function decrement() {
+    if (count > 0) count--;
+    updateDisplay();
+  }
+
+  incrementBtn.addEventListener("click", increment);
+  decrementBtn.addEventListener("click", decrement);
+  resetBtn.addEventListener("click", e => { count = 0; updateDisplay(); });
+
+  targetInput.addEventListener("change", e => {
+    target = parseInt(targetInput.value) || 100;
+    updateDisplay();
+  });
+
+  vibrateToggle.addEventListener("change", e => {
+    vibrate = vibrateToggle.checked || false;
+    updateDisplay();
+  });
+
+  soundToggle.addEventListener("change", e => {
+    sound = soundToggle.checked || false;
+    updateDisplay();
+  });
+
+  document.addEventListener("keydown", e => {
+    if (e.code === "Space" || e.code === "Enter") {
+      e.preventDefault();
+      increment();
+    }
+  });
+
+  incrementBtn.addEventListener("mousedown", e => {
+    autoIncrementInterval = setInterval(increment, 200);
+  });
+  document.addEventListener("mouseup", e => clearInterval(autoIncrementInterval));
+</script>
+</body>
+</html>
+
