@@ -164,7 +164,6 @@
     </div>
   </div>
 </div>
-
 <script>
 /* ------------------------
      LocalStorage Helpers
@@ -191,11 +190,11 @@ let count = get("count", 0);
 let target = get("target", 100);
 let vibrate = get("vibrate", false);
 let sound = get("sound", false);
-let startTime = get("startTime", Date.now());
-if (!startTime) {
-  startTime = Date.now();
-  set("startTime", startTime);
-}
+
+/* TIMER STATE (FIXED) */
+let elapsedSeconds = get("elapsedSeconds", 0);
+let lastActiveTime = null;
+let timerInterval = null;
 
 /* Apply UI state */
 targetInput.value = target;
@@ -203,17 +202,56 @@ vibrateToggle.checked = vibrate;
 soundToggle.checked = sound;
 
 /* ------------------------
-      TIMER HANDLER
+      TIMER FUNCTIONS
 ------------------------ */
-function updateTimer() {
-  let diff = Math.floor((Date.now() - startTime) / 1000);
-  let h = String(Math.floor(diff / 3600)).padStart(2, "0");
-  let m = String(Math.floor((diff % 3600) / 60)).padStart(2, "0");
-  let s = String(diff % 60).padStart(2, "0");
-  timerEl.textContent = `Time: ${h}:${m}:${s}`;
+function formatTime(totalSeconds) {
+  const h = String(Math.floor(totalSeconds / 3600)).padStart(2, "0");
+  const m = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, "0");
+  const s = String(totalSeconds % 60).padStart(2, "0");
+  return `${h}:${m}:${s}`;
 }
-setInterval(updateTimer, 1000);
-updateTimer();
+
+function updateTimerUI() {
+  timerEl.textContent = `Time: ${formatTime(elapsedSeconds)}`;
+}
+
+function startTimer() {
+  if (timerInterval) return;
+
+  lastActiveTime = Date.now();
+  timerInterval = setInterval(() => {
+    const now = Date.now();
+    const diff = Math.floor((now - lastActiveTime) / 1000);
+    if (diff > 0) {
+      elapsedSeconds += diff;
+      lastActiveTime = now;
+      set("elapsedSeconds", elapsedSeconds);
+      updateTimerUI();
+    }
+  }, 1000);
+}
+
+function stopTimer() {
+  if (!timerInterval) return;
+
+  const now = Date.now();
+  elapsedSeconds += Math.floor((now - lastActiveTime) / 1000);
+  set("elapsedSeconds", elapsedSeconds);
+
+  clearInterval(timerInterval);
+  timerInterval = null;
+}
+
+/* ------------------------
+   PAGE VISIBILITY HANDLER
+------------------------ */
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    if (count > 0) startTimer();
+  } else {
+    stopTimer();
+  }
+});
 
 /* ------------------------
         UPDATE DISPLAY
@@ -230,7 +268,6 @@ function updateDisplay() {
   set("vibrate", vibrate);
   set("sound", sound);
 
-  // Target-reached sound alert
   if (sound && count >= target) {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     const osc = ctx.createOscillator();
@@ -267,21 +304,21 @@ function vibrateFun() {
         INCREMENT
 ------------------------ */
 function increment() {
-  if (count === 0) {
-    startTime = Date.now();
-    set("startTime", startTime);
+  if (count === 0 && !timerInterval) {
+    startTimer();
   }
-  
+
   count++;
   updateDisplay();
   beep();
   vibrateFun();
 }
 
-/* Big circle click */
+/* ------------------------
+        EVENTS
+------------------------ */
 bigCircle.addEventListener("click", increment);
 
-/* Space/Enter key */
 document.addEventListener("keydown", e => {
   if (e.code === "Space" || e.code === "Enter") {
     e.preventDefault();
@@ -289,28 +326,27 @@ document.addEventListener("keydown", e => {
   }
 });
 
-/* ------------------------
-        AUTO HOLD
------------------------- */
+/* AUTO HOLD */
 let autoInterval;
-bigCircle.addEventListener("mousedown", e => {
+bigCircle.addEventListener("mousedown", () => {
   autoInterval = setInterval(increment, 200);
 });
-document.addEventListener("mouseup", e => clearInterval(autoInterval));
+document.addEventListener("mouseup", () => clearInterval(autoInterval));
 
 /* ------------------------
      SETTINGS CHANGES
 ------------------------ */
-targetInput.addEventListener("change", e => {
+targetInput.addEventListener("change", () => {
   target = parseInt(targetInput.value) || 100;
-  set("target", target);
   updateDisplay();
 });
-vibrateToggle.addEventListener("change", e => {
+
+vibrateToggle.addEventListener("change", () => {
   vibrate = vibrateToggle.checked;
   set("vibrate", vibrate);
 });
-soundToggle.addEventListener("change", e => {
+
+soundToggle.addEventListener("change", () => {
   sound = soundToggle.checked;
   set("sound", sound);
 });
@@ -322,20 +358,30 @@ const modal = document.querySelector("#confirmModal");
 const yesBtn = document.querySelector("#confirmYes");
 const noBtn = document.querySelector("#confirmNo");
 
-resetBtn.addEventListener("click", e => modal.classList.add("show"));
+resetBtn.addEventListener("click", () => modal.classList.add("show"));
+noBtn.addEventListener("click", () => modal.classList.remove("show"));
 
-noBtn.addEventListener("click", e => modal.classList.remove("show"));
-
-yesBtn.addEventListener("click", e => {
+yesBtn.addEventListener("click", () => {
   count = 0;
-  startTime = Date.now();
-  set("startTime", startTime);
+  elapsedSeconds = 0;
+  set("elapsedSeconds", 0);
+
+  stopTimer();
+  updateTimerUI();
   updateDisplay();
-  updateTimer();
+
   modal.classList.remove("show");
 });
 
-(e => updateDisplay())();
+/* ------------------------
+      INITIAL LOAD
+------------------------ */
+updateDisplay();
+updateTimerUI();
+
+if (document.visibilityState === "visible" && count > 0) {
+  startTimer();
+}
 </script>
 
 </body>
