@@ -274,7 +274,7 @@ function updateDisplay() {
   countEl.textContent = count;
 
   const percent = Math.min(count / target, 1);
-  percentEl.textContent = `${Math.floor(percent * 100)} %`;
+  percentEl.textContent = `${(percent * 100).toFixed(2)}%`;
   const offset = 565 - (565 * percent);
   progressEl.style.strokeDashoffset = offset;
 
