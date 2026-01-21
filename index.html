@@ -50,6 +50,19 @@
     margin: 40px auto 10px;
     justify-content: center;
     border: 6px solid #4caf50;
+
+    /* FIX: remove square highlight */
+    outline: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .percentage {
+    position: absolute;
+    top: 30px;
+    right: 50px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: #4caf50;
   }
 
   /* Progress Ring */
@@ -136,10 +149,10 @@
 <!-- Increment Circle -->
 <div id="bigCircle">
   <span id="count">0</span>
+  <div class="percentage" id="percentage">0%</div>
   <svg width="200" height="200">
     <circle cx="100" cy="100" r="90" stroke="#ccc" stroke-width="10" fill="none"/>
-    <circle id="progress" cx="100" cy="100" r="90" stroke="#4caf50" stroke-width="10"
-            fill="none" stroke-dasharray="565" stroke-dashoffset="565"/>
+    <circle id="progress" cx="100" cy="100" r="90" stroke="#4caf50" stroke-width="10" fill="none" stroke-dasharray="565" stroke-dashoffset="565"/>
   </svg>
 </div>
 
@@ -175,6 +188,7 @@ const set = (k, v) => localStorage.setItem(`rosary-${k}`, JSON.stringify(v));
      DOM Elements
 ------------------------ */
 const countEl = document.querySelector("#count");
+const percentEl = document.querySelector("#percentage");
 const progressEl = document.querySelector("#progress");
 const bigCircle = document.querySelector("#bigCircle");
 const resetBtn = document.querySelector("#reset");
@@ -260,6 +274,7 @@ function updateDisplay() {
   countEl.textContent = count;
 
   const percent = Math.min(count / target, 1);
+  percentEl.textContent = `${Math.floor(percent * 100)} %`;
   const offset = 565 - (565 * percent);
   progressEl.style.strokeDashoffset = offset;
 
