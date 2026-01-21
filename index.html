@@ -157,7 +157,6 @@
   <div class="modal-content">
     <h3>Reset Counter?</h3>
     <p>Your current count & timer will be reset.</p>
-
     <div class="modal-buttons">
       <button id="confirmYes" class="yes-btn">Yes</button>
       <button id="confirmNo" class="no-btn">Cancel</button>
@@ -169,8 +168,8 @@
 /* ------------------------
      LocalStorage Helpers
 ------------------------ */
-const get = (k, d) => JSON.parse(localStorage.getItem(`tasbih-${k}`)) ?? d;
-const set = (k, v) => localStorage.setItem(`tasbih-${k}`, JSON.stringify(v));
+const get = (k, d) => JSON.parse(localStorage.getItem(`rosary-${k}`)) ?? d;
+const set = (k, v) => localStorage.setItem(`rosary-${k}`, JSON.stringify(v));
 
 /* ------------------------
      DOM Elements
@@ -284,24 +283,24 @@ document.addEventListener("keydown", e => {
         AUTO HOLD
 ------------------------ */
 let autoInterval;
-bigCircle.addEventListener("mousedown", () => {
+bigCircle.addEventListener("mousedown", e => {
   autoInterval = setInterval(increment, 200);
 });
-document.addEventListener("mouseup", () => clearInterval(autoInterval));
+document.addEventListener("mouseup", e => clearInterval(autoInterval));
 
 /* ------------------------
      SETTINGS CHANGES
 ------------------------ */
-targetInput.addEventListener("change", () => {
+targetInput.addEventListener("change", e => {
   target = parseInt(targetInput.value) || 100;
   set("target", target);
   updateDisplay();
 });
-vibrateToggle.addEventListener("change", () => {
+vibrateToggle.addEventListener("change", e => {
   vibrate = vibrateToggle.checked;
   set("vibrate", vibrate);
 });
-soundToggle.addEventListener("change", () => {
+soundToggle.addEventListener("change", e => {
   sound = soundToggle.checked;
   set("sound", sound);
 });
@@ -309,19 +308,15 @@ soundToggle.addEventListener("change", () => {
 /* ------------------------
      RESET WITH MODAL
 ------------------------ */
-const modal = document.getElementById("confirmModal");
-const yesBtn = document.getElementById("confirmYes");
-const noBtn = document.getElementById("confirmNo");
+const modal = document.querySelector("#confirmModal");
+const yesBtn = document.querySelector("#confirmYes");
+const noBtn = document.querySelector("#confirmNo");
 
-resetBtn.addEventListener("click", () => {
-  modal.classList.add("show");
-});
+resetBtn.addEventListener("click", e => modal.classList.add("show"));
 
-noBtn.addEventListener("click", () => {
-  modal.classList.remove("show");
-});
+noBtn.addEventListener("click", e => modal.classList.remove("show"));
 
-yesBtn.addEventListener("click", () => {
+yesBtn.addEventListener("click", e => {
   count = 0;
   startTime = Date.now();
   set("startTime", startTime);
@@ -329,6 +324,8 @@ yesBtn.addEventListener("click", () => {
   updateTimer();
   modal.classList.remove("show");
 });
+
+(e => updateDisplay())();
 </script>
 
 </body>
