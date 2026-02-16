@@ -81,7 +81,8 @@ function stopTimer() {
 ------------------------ */
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") {
-    if (count > 0) startTimer();
+    // if (count > 0)
+    startTimer();
   } else {
     stopTimer();
   }
